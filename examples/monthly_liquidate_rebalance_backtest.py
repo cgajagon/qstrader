@@ -66,9 +66,9 @@ def run(config, testing, tickers, filename):
     title = [
         'Monthly Liquidate/Rebalance on 60%/40% SPY/AGG Portfolio'
     ]
-    initial_equity = 500000.0
-    start_date = datetime.datetime(2006, 11, 1)
-    end_date = datetime.datetime(2016, 10, 12)
+    initial_equity = 10000.0
+    start_date = datetime.datetime(2018, 1, 1)
+    end_date = datetime.datetime(2020, 1, 1)
 
     # Use the Monthly Liquidate And Rebalance strategy
     events_queue = queue.Queue()
@@ -79,8 +79,9 @@ def run(config, testing, tickers, filename):
     # Use the liquidate and rebalance position sizer
     # with prespecified ticker weights
     ticker_weights = {
-        "SPY": 0.6,
-        "AGG": 0.4,
+        "SPY": 0.3,
+        "AGG": 0.2,
+        "APPL":0.2,
     }
     position_sizer = LiquidateRebalancePositionSizer(
         ticker_weights
