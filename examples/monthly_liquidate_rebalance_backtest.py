@@ -81,7 +81,7 @@ def run(config, testing, tickers, filename):
     ticker_weights = {
         "SPY": 0.3,
         "AGG": 0.2,
-        "APPL":0.2,
+        "AAPL":0.2,
     }
     position_sizer = LiquidateRebalancePositionSizer(
         ticker_weights
@@ -104,6 +104,6 @@ if __name__ == "__main__":
     config = settings.from_file(
         settings.DEFAULT_CONFIG_FILENAME, testing
     )
-    tickers = ["SPY", "AGG"]
+    tickers = ["SPY", "AGG", "AAPL"]
     filename = None
     run(config, testing, tickers, filename)
