@@ -53,11 +53,13 @@ class MonthlyRebalanceStrategy(AbstractStrategy):
         ):
             ticker = event.ticker
             if self.tickers_invested[ticker]:
-                liquidate_signal = SignalEvent(ticker, "EXIT")
+                liquidate_signal = SignalEvent(ticker, "REBALANCE")
                 self.events_queue.put(liquidate_signal)
-            long_signal = SignalEvent(ticker, "BOT")
-            self.events_queue.put(long_signal)
-            self.tickers_invested[ticker] = True
+            
+            elif self.tickers_invested[ticker] == False:
+                long_signal = SignalEvent(ticker, "BOT")
+                self.events_queue.put(long_signal)
+                self.tickers_invested[ticker] = True
 
 
 def run(config, testing, tickers, filename):
@@ -66,7 +68,7 @@ def run(config, testing, tickers, filename):
         'Monthly Liquidate/Rebalance on 60%/40% SPY/AGG Portfolio'
     ]
     initial_equity = 10000.0
-    start_date = datetime.datetime(2018, 1, 1)
+    start_date = datetime.datetime(2019, 5, 30)
     end_date = datetime.datetime(2020, 1, 1)
 
     # Use the Monthly Liquidate And Rebalance strategy

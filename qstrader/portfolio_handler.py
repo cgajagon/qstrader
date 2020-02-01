@@ -100,7 +100,7 @@ class PortfolioHandler(object):
         sized_order = self.position_sizer.size_order(
             self.portfolio, initial_order
         )
-        print(initial_order.ticker, initial_order.action, initial_order.quantity)
+        print(sized_order.ticker, sized_order.action, sized_order.quantity)
         # Refine or eliminate the order via the risk manager overlay
         order_events = self.risk_manager.refine_orders(
             self.portfolio, sized_order

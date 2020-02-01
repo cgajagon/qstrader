@@ -34,10 +34,14 @@ class IBSimulatedExecutionHandler(AbstractExecutionHandler):
         the details of which can be found here:
         https://www.interactivebrokers.co.uk/en/index.php?f=1590&p=stocks1
         """
-        commission = min(
-            0.5 * fill_price * quantity,
-            max(1.0, 0.005 * quantity)
+        questrade_order_Fee = min(
+            max(0.01 * quantity, 5.0), 10.0
         )
+        ECN_Fee_removing_liquidity = 0.0035 * quantity
+        SEC_Fee = 0.0000207 * quantity * PriceParser.display(fill_price) #Only applicable for US Securities
+        # Addition of all different types of fees
+        commission = questrade_order_Fee + ECN_Fee_removing_liquidity + SEC_Fee
+
         return PriceParser.parse(commission)
 
     def execute_order(self, event):
