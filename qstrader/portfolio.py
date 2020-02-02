@@ -1,4 +1,5 @@
 from .position import Position
+from qstrader.price_parser import PriceParser
 
 
 class Portfolio(object):
@@ -140,3 +141,4 @@ class Portfolio(object):
                 action, ticker, quantity,
                 price, commission
             )
+        print(PriceParser.display(self.cur_cash))

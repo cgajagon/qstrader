@@ -8,7 +8,7 @@ from qstrader.trading_session import TradingSession
 from qstrader.position_sizer.weight import WeightPositionSizer 
 
 
-class BuyAndHoldStrategy(AbstractStrategy):
+class BuyAndHoldStopLossStrategy(AbstractStrategy):
     """
     A testing strategy that simply purchases (longs) an asset
     upon first receipt of the relevant bar event and
@@ -25,6 +25,7 @@ class BuyAndHoldStrategy(AbstractStrategy):
         self.tickers = tickers
         self.events_queue = events_queue
         self.tickers_invested = self._create_invested_list()
+        self.maximum_prices = self._create_maximum_list()
 
     def _create_invested_list(self):
         """
@@ -34,36 +35,59 @@ class BuyAndHoldStrategy(AbstractStrategy):
         a liquidation signal on the first allocation.
         """
         tickers_invested = {ticker: False for ticker in self.tickers}
+
         return tickers_invested
-        
+
+    def _create_maximum_list(self):
+        """
+        TODO
+        """
+        maximum_prices = {ticker: 0 for ticker in self.tickers}
+
+        return maximum_prices
+ 
     def calculate_signals(self, event):
         if (
             event.type in [EventType.BAR, EventType.TICK]
             ):
             
             ticker = event.ticker
-            if not self.tickers_invested[ticker]:
+            # Update historical maximum price for the ticker
+            if self.maximum_prices[ticker] < event.high_price:
+                self.maximum_prices[ticker] = event.high_price
+
+            # Initial Investment
+            if self.tickers_invested[ticker] == False and event.high_price == self.maximum_prices[ticker]:
                 signal = SignalEvent(
                     ticker, "BOT",
                 )
                 self.events_queue.put(signal)
                 self.tickers_invested[ticker] = True
+          
+            # Stop Loss Signal
+            if self.tickers_invested[ticker] == True and event.low_price <= self.maximum_prices[ticker] * (1 - 0.1):
+                signal = SignalEvent(
+                    ticker, "STOP_LOSS",
+                )
+                self.events_queue.put(signal)
+                self.tickers_invested[ticker] = False
 
 def run(config, testing, tickers, filename):
     # Backtest information
     title = ['Buy and Hold Example on %s' % tickers[:]]
     initial_equity = 10000.0
-    start_date = datetime.datetime(2019, 11, 1)
+    start_date = datetime.datetime(2017, 1, 1)
     end_date = datetime.datetime(2020, 1, 1)
     ticker_weights = {
         "SPY": 0.2,
         "AAPL":0.2,
-        "KEYS":0.4,
+        "AGG":0.2,
+        "KEYS":0.2,
     }
 
     # Use the Buy and Hold Strategy
     events_queue = queue.Queue()
-    strategy = BuyAndHoldStrategy(tickers, events_queue)
+    strategy = BuyAndHoldStopLossStrategy(tickers, events_queue)
 
     # Position Sizer
     position_sizer = WeightPositionSizer(ticker_weights)
@@ -85,6 +109,6 @@ if __name__ == "__main__":
     config = settings.from_file(
         settings.DEFAULT_CONFIG_FILENAME, testing
     )
-    tickers = ["SPY", "AAPL", "KEYS"]
+    tickers = ["SPY", "AAPL", "AGG", "KEYS"]
     filename = None
     run(config, testing, tickers, filename)

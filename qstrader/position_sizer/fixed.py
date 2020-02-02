@@ -8,7 +8,7 @@ class FixedPositionSizer(AbstractPositionSizer):
     def size_order(self, portfolio, initial_order):
         """
         This FixedPositionSizer object simply modifies
-        the quantity to be 100 of any share transacted.
+        the quantity to be a default quantity of any share transacted.
         """
         initial_order.quantity = self.default_quantity
         return initial_order

@@ -121,6 +121,7 @@ class TradingSession(object):
         while self._continue_loop_condition():
             try:
                 event = self.events_queue.get(False)
+                #print(event)
             except queue.Empty:
                 self.price_handler.stream_next()
             else:
