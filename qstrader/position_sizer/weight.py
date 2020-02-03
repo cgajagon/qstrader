@@ -10,33 +10,39 @@ class WeightPositionSizer(AbstractPositionSizer):
 
     def size_order(self, portfolio, initial_order):
         """
-        This FixedPositionSizer object simply modifies
-        the quantity to be a default quantity of any share transacted.
+        This WeightPositionSizer object divides the cash available 
+        among the tickers selected.
         """
         ticker = initial_order.ticker
-        weight = self.ticker_weights
+        weight = dict(self.ticker_weights)
 
         if initial_order.action == 'BOT':
-            # Determine total portfolio value, work out dollar weight
+            # Determine current cash available in the portfolio, work out dollar weight
             # and finally determine integer quantity of shares to purchase
-            price = portfolio.price_handler.tickers[ticker]["adj_close"]
+            price = portfolio.price_handler.tickers[ticker]["close"]
             price = PriceParser.display(price)
             cur_cash = PriceParser.display(portfolio.cur_cash)
-            positions_dict = portfolio.positions
-
-            for key, value in positions_dict.items():
-                print('Key is:',key)
+            position_list = portfolio.positions
+            for key, values in position_list.items():
                 weight[key] = 0
-            print('Updated: ',weight)
 
-            allocated_cash = cur_cash * self.ticker_weights[ticker]
+            # Calculate the total weight not yet allocated yet
+            remaining_weight = sum(weight.values())
+
+            # Adjust the weight for the ticker not yet allocated 
+            for key, values in weight.items():
+                if weight[key] != 0:
+                    weight[key] =  weight[key] / remaining_weight
+
+            # Determine the integer quantity of shares
+            allocated_cash = cur_cash * weight[ticker]
             weight_quantity = (allocated_cash / price)
             initial_order.quantity = int(floor(weight_quantity))
-
-       
+      
         elif initial_order.action == 'STOP_LOSS':
+            # Liquidate the position
             cur_quantity = portfolio.positions[ticker].quantity
             initial_order.quantity = cur_quantity
-            initial_order.action == 'SLD'
+            initial_order.action = 'SLD'
 
         return initial_order

@@ -130,7 +130,6 @@ class Portfolio(object):
             self.cur_cash -= ((quantity * price) + commission)
         elif action == "SLD":
             self.cur_cash += ((quantity * price) - commission)
-
         if ticker not in self.positions:
             self._add_position(
                 action, ticker, quantity,
@@ -141,4 +140,3 @@ class Portfolio(object):
                 action, ticker, quantity,
                 price, commission
             )
-        print(PriceParser.display(self.cur_cash))

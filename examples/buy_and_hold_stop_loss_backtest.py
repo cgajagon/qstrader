@@ -10,20 +10,22 @@ from qstrader.position_sizer.weight import WeightPositionSizer
 
 class BuyAndHoldStopLossStrategy(AbstractStrategy):
     """
-    A testing strategy that simply purchases (longs) an asset
-    upon first receipt of the relevant bar event and
-    then holds until the completion of a backtest.
+    A testing strategy that purchases (longs) an asset
+    upon first receipt of the maximum price up to date and
+    then holds until either the completion of a backtest
+    or the value of the position drops below a stop loss price.
     """
     def __init__(
         self, tickers, 
         events_queue, 
-        base_quantity=100
+        risk_pct,
     ):
         """
         TODO
         """
         self.tickers = tickers
         self.events_queue = events_queue
+        self.risk_pct = risk_pct
         self.tickers_invested = self._create_invested_list()
         self.maximum_prices = self._create_maximum_list()
 
@@ -56,7 +58,7 @@ class BuyAndHoldStopLossStrategy(AbstractStrategy):
             if self.maximum_prices[ticker] < event.high_price:
                 self.maximum_prices[ticker] = event.high_price
 
-            # Initial Investment
+            # Long Signal when the price is the maximum
             if self.tickers_invested[ticker] == False and event.high_price == self.maximum_prices[ticker]:
                 signal = SignalEvent(
                     ticker, "BOT",
@@ -65,7 +67,7 @@ class BuyAndHoldStopLossStrategy(AbstractStrategy):
                 self.tickers_invested[ticker] = True
           
             # Stop Loss Signal
-            if self.tickers_invested[ticker] == True and event.low_price <= self.maximum_prices[ticker] * (1 - 0.1):
+            if self.tickers_invested[ticker] == True and event.low_price <= self.maximum_prices[ticker] * (1 - self.risk_pct):
                 signal = SignalEvent(
                     ticker, "STOP_LOSS",
                 )
@@ -82,12 +84,15 @@ def run(config, testing, tickers, filename):
         "SPY": 0.2,
         "AAPL":0.2,
         "AGG":0.2,
-        "KEYS":0.2,
+        "V":0.2,
     }
+    
+    # Acceptable drop percentage for the position
+    risk_pct = 0.04
 
     # Use the Buy and Hold Strategy
     events_queue = queue.Queue()
-    strategy = BuyAndHoldStopLossStrategy(tickers, events_queue)
+    strategy = BuyAndHoldStopLossStrategy(tickers, events_queue, risk_pct)
 
     # Position Sizer
     position_sizer = WeightPositionSizer(ticker_weights)
@@ -109,6 +114,6 @@ if __name__ == "__main__":
     config = settings.from_file(
         settings.DEFAULT_CONFIG_FILENAME, testing
     )
-    tickers = ["SPY", "AAPL", "AGG", "KEYS"]
+    tickers = ["SPY", "AAPL", "AGG", "V"]
     filename = None
     run(config, testing, tickers, filename)

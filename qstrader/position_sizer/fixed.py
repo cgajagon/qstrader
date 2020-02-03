@@ -1,3 +1,4 @@
+from math import floor
 from .base import AbstractPositionSizer
 
 
@@ -10,5 +11,13 @@ class FixedPositionSizer(AbstractPositionSizer):
         This FixedPositionSizer object simply modifies
         the quantity to be a default quantity of any share transacted.
         """
-        initial_order.quantity = self.default_quantity
+
+        ticker = initial_order.ticker
+
+        init_cash = portfolio.init_cash
+        price = portfolio.price_handler.tickers[ticker]["adj_close"]
+        quantity = int(floor(init_cash/price))
+        
+        initial_order.quantity = quantity
+
         return initial_order

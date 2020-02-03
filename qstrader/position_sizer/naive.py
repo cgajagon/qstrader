@@ -7,10 +7,9 @@ class NaivePositionSizer(AbstractPositionSizer):
 
     def size_order(self, portfolio, initial_order):
         """
-        This NaivePositionSizer object follows all
-        suggestions from the initial order without
-        modification. Useful for testing simpler
-        strategies that do not reside in a larger
-        risk-managed portfolio.
+        This NaivePositionSizer object simply modifies
+        the quantity to be a default quantity of any share transacted
         """
+        initial_order.quantity = self.default_quantity
+
         return initial_order

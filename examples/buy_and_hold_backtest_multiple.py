@@ -17,11 +17,7 @@ class BuyAndHoldStrategy(AbstractStrategy):
     def __init__(
         self, tickers, 
         events_queue, 
-        base_quantity=100
     ):
-        """
-        TODO
-        """
         self.tickers = tickers
         self.events_queue = events_queue
         self.tickers_invested = self._create_invested_list()
@@ -53,12 +49,12 @@ def run(config, testing, tickers, filename):
     # Backtest information
     title = ['Buy and Hold Example on %s' % tickers[:]]
     initial_equity = 10000.0
-    start_date = datetime.datetime(2019, 11, 1)
-    end_date = datetime.datetime(2020, 1, 1)
+    start_date = datetime.datetime(2019, 1, 1)
+    end_date = datetime.datetime(2020, 1, 31)
     ticker_weights = {
-        "SPY": 0.2,
-        "AAPL":0.2,
-        "KEYS":0.4,
+        "SPY":0.3,
+        "MA": 0.2,
+        "AAPL": 0.5,
     }
 
     # Use the Buy and Hold Strategy
@@ -78,13 +74,12 @@ def run(config, testing, tickers, filename):
     results = backtest.start_trading(testing=testing)
     return results
 
-
 if __name__ == "__main__":
     # Configuration data
     testing = False
     config = settings.from_file(
         settings.DEFAULT_CONFIG_FILENAME, testing
     )
-    tickers = ["SPY", "AAPL", "KEYS"]
+    tickers = ["SPY", "MA", "AAPL"]
     filename = None
     run(config, testing, tickers, filename)
