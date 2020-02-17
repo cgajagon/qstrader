@@ -42,7 +42,7 @@ class LiquidateRebalancePositionSizer(AbstractPositionSizer):
             weight = self.ticker_weights[ticker]
             # Determine total portfolio value, work out dollar weight
             # and finally determine integer quantity of shares to purchase
-            price = portfolio.price_handler.tickers[ticker]["adj_close"]
+            price = portfolio.price_handler.tickers[ticker]["close"]
             price = PriceParser.display(price)
             equity = PriceParser.display(portfolio.equity)
             dollar_weight = weight * equity
@@ -78,7 +78,7 @@ class RebalancePositionSizer(AbstractPositionSizer):
         weight = self.ticker_weights[ticker]
         # Determine total portfolio value, work out dollar weight
         # and finally determine integer quantity of shares to purchase
-        price = portfolio.price_handler.tickers[ticker]["adj_close"]
+        price = portfolio.price_handler.tickers[ticker]["close"]
         price = PriceParser.display(price)
         equity = PriceParser.display(portfolio.equity)
         dollar_weight = weight * equity

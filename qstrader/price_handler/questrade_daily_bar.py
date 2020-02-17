@@ -1,3 +1,4 @@
+import psycopg2
 import os
 
 import pandas as pd
@@ -7,15 +8,15 @@ from .base import AbstractBarPriceHandler
 from ..event import BarEvent
 
 
-class YahooDailyCsvBarPriceHandler(AbstractBarPriceHandler):
+class QuestradeDatabaseBarPriceHandler(AbstractBarPriceHandler):
     """
-    YahooDailyBarPriceHandler is designed to read CSV files of
-    Yahoo Finance daily Open-High-Low-Close-Volume (OHLCV) data
+    QuestradeDatabaseBarPriceHandler is designed to read the database created wiht the data from Questrade
+    dayly Open-High-Low-Close-Volume (OHLCV) data
     for each requested financial instrument and stream those to
     the provided events queue as BarEvents.
     """
     def __init__(
-        self, csv_dir, events_queue,
+        self, events_queue,
         init_tickers=None,
         start_date=None, end_date=None,
         calc_adj_returns=False
@@ -25,7 +26,6 @@ class YahooDailyCsvBarPriceHandler(AbstractBarPriceHandler):
         list of initial ticker symbols then creates an (optional)
         list of ticker subscriptions and associated prices.
         """
-        self.csv_dir = csv_dir
         self.events_queue = events_queue
         self.continue_backtest = True
         self.tickers = {}
@@ -40,22 +40,42 @@ class YahooDailyCsvBarPriceHandler(AbstractBarPriceHandler):
         if self.calc_adj_returns:
             self.adj_close_returns = []
 
-    def _open_ticker_price_csv(self, ticker):
+    def _open_ticker_price(self, ticker):
         """
-        Opens the CSV files containing the equities ticks from
-        the specified CSV data directory, converting them into
-        them into a pandas DataFrame, stored in a dictionary.
-        """
-        ticker_path = os.path.join(self.csv_dir, "%s.csv" % ticker)
-        self.tickers_data[ticker] = pd.io.parsers.read_csv(
-            ticker_path, header=0, parse_dates=True,
-            index_col=0, names=(
-                "Date", "Open", "High", "Low",
-                "Close", "Adj Close", "Volume"
-            )
-        )
-        self.tickers_data[ticker]["Ticker"] = ticker
-        print(self.tickers_data[ticker])
+        Opens the database containing the equities, 
+        converting them into a pandas DataFrame, stored in a dictionary.
+        """     
+        try:
+            connection = psycopg2.connect(user = "postgres",
+                                        password = "r7v56cwF",
+                                        host = "127.0.0.1",
+                                        port = "5432",
+                                        database = "my_awesome_project")
+
+            query = '''
+            SELECT start_date, open_price, high_price, low_price, close_price, volume, symbol_symbols_id
+            FROM "trading_app_candles"
+            WHERE symbol_symbols_id = %(ticker)s
+            '''
+            params = {
+                "ticker":ticker
+            }
+
+            self.tickers_data[ticker] = pd.read_sql_query(query,con=connection, index_col=['start_date'], params=params, parse_dates=True)
+            self.tickers_data[ticker].index = pd.to_datetime(self.tickers_data[ticker].index)
+            self.tickers_data[ticker].index.name = "Date"
+            self.tickers_data[ticker].columns = [
+            "Open", "High", "Low",
+            "Close", "Volume", "Ticker"
+            ]
+
+        except (Exception, psycopg2.Error) as error :
+            print ("Error while connecting to PostgreSQL", error)
+        finally:
+            #closing database connection.
+            if(connection):
+                connection.close()
+                print("PostgreSQL connection is closed")
 
     def _merge_sort_ticker_data(self):
         """
@@ -93,16 +113,14 @@ class YahooDailyCsvBarPriceHandler(AbstractBarPriceHandler):
         """
         if ticker not in self.tickers:
             try:
-                self._open_ticker_price_csv(ticker)
+                self._open_ticker_price(ticker)
                 dft = self.tickers_data[ticker]
                 row0 = dft.iloc[0]
 
                 close = PriceParser.parse(row0["Close"])
-                adj_close = PriceParser.parse(row0["Adj Close"])
 
                 ticker_prices = {
                     "close": close,
-                    "adj_close": adj_close,
                     "timestamp": dft.index[0]
                 }
                 self.tickers[ticker] = ticker_prices
@@ -126,12 +144,11 @@ class YahooDailyCsvBarPriceHandler(AbstractBarPriceHandler):
         high_price = PriceParser.parse(row["High"])
         low_price = PriceParser.parse(row["Low"])
         close_price = PriceParser.parse(row["Close"])
-        adj_close_price = PriceParser.parse(row["Adj Close"])
         volume = int(row["Volume"])
         bev = BarEvent(
             ticker, index, period, open_price,
             high_price, low_price, close_price,
-            volume, adj_close_price
+            volume
         )
         return bev
 

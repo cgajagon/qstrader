@@ -64,6 +64,6 @@ if __name__ == "__main__":
     config = settings.from_file(
         settings.DEFAULT_CONFIG_FILENAME, testing
     )
-    tickers = ["KEYS", "SPY"]
+    tickers = ["AAPL", "SPY"]
     filename = None
     run(config, testing, tickers, filename)

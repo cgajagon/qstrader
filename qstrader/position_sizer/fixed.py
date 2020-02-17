@@ -15,7 +15,7 @@ class FixedPositionSizer(AbstractPositionSizer):
         ticker = initial_order.ticker
 
         init_cash = portfolio.init_cash
-        price = portfolio.price_handler.tickers[ticker]["adj_close"]
+        price = portfolio.price_handler.tickers[ticker]["close"]
         quantity = int(floor(init_cash/price))
         
         initial_order.quantity = quantity
