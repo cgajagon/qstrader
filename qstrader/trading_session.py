@@ -3,7 +3,7 @@ from datetime import datetime
 from .compat import queue
 from .event import EventType
 from .price_handler.yahoo_daily_csv_bar import YahooDailyCsvBarPriceHandler
-from .price_handler.questrade_daly_bar import QuestradeDatabaseBarPriceHandler
+from .price_handler.questrade_daily_bar import QuestradeDatabaseBarPriceHandler
 from .price_parser import PriceParser
 from .position_sizer.fixed import FixedPositionSizer
 from .risk_manager.example import ExampleRiskManager

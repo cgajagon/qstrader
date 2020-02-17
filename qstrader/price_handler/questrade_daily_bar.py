@@ -75,7 +75,6 @@ class QuestradeDatabaseBarPriceHandler(AbstractBarPriceHandler):
             #closing database connection.
             if(connection):
                 connection.close()
-                print("PostgreSQL connection is closed")
 
     def _merge_sort_ticker_data(self):
         """
@@ -124,11 +123,12 @@ class QuestradeDatabaseBarPriceHandler(AbstractBarPriceHandler):
                     "timestamp": dft.index[0]
                 }
                 self.tickers[ticker] = ticker_prices
-            except OSError:
+
+            except IndexError:
                 print(
                     "Could not subscribe ticker %s "
-                    "as no data CSV found for pricing." % ticker
-                )
+                    "as no data found for pricing." % ticker
+                )            
         else:
             print(
                 "Could not subscribe ticker %s "
