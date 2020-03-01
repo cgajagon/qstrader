@@ -1,15 +1,17 @@
 import psycopg2
 import os
 import pandas as pd
+from datetime import date
+from qtrade import Questrade
 
 from ..price_parser import PriceParser
 from .base import AbstractBarPriceHandler
 from ..event import BarEvent
 
 
-class QuestradeDatabaseBarPriceHandler(AbstractBarPriceHandler):
+class QuestradeBarPriceHandler(AbstractBarPriceHandler):
     """
-    QuestradeDatabaseBarPriceHandler is designed to read the database created wiht the data from Questrade
+    QuestradeBarPriceHandler is designed to get from Questrade API
     dayly Open-High-Low-Close-Volume (OHLCV) data
     for each requested financial instrument and stream those to
     the provided events queue as BarEvents.
@@ -21,7 +23,7 @@ class QuestradeDatabaseBarPriceHandler(AbstractBarPriceHandler):
         calc_returns=False
     ):
         """
-        Takes the CSV directory, the events queue and a possible
+        Takes the Questrade API, the events queue and a possible
         list of initial ticker symbols then creates an (optional)
         list of ticker subscriptions and associated prices.
         """
@@ -41,39 +43,35 @@ class QuestradeDatabaseBarPriceHandler(AbstractBarPriceHandler):
 
     def _open_ticker_price(self, ticker):
         """
-        Opens the database containing the equities, 
+        Call the API and retrieve the containing the equities ticks, 
         converting them into a pandas DataFrame, stored in a dictionary.
         """     
-        try:
-            connection = psycopg2.connect(user = "postgres",
-                                        password = "r7v56cwF",
-                                        host = "127.0.0.1",
-                                        port = "5432",
-                                        database = "my_awesome_project")
+        provider = Questrade(token_yaml="access_token.yml")
+        # retrieve all the history
+        initial_date = "1950-01-01"
+        end_date = date.today().strftime("%Y-%m-%d")
+        data = provider.get_symbol_historical_data(ticker, initial_date, end_date, "OneDay")
 
-            query = '''
-            SELECT start_date, open_price, high_price, low_price, close_price, volume, symbol_symbols_id
-            FROM "trading_app_candles"
-            WHERE symbol_symbols_id = %(ticker)s
-            '''
-            params = {
-                "ticker":ticker
-            }
-
-            self.tickers_data[ticker] = pd.read_sql_query(query,con=connection, index_col=['start_date'], params=params, parse_dates=True)
-            self.tickers_data[ticker].index = pd.to_datetime(self.tickers_data[ticker].index)
-            self.tickers_data[ticker].index.name = "Date"
-            self.tickers_data[ticker].columns = [
-            "Open", "High", "Low",
-            "Close", "Volume", "Ticker"
-            ]
-
-        except (Exception, psycopg2.Error) as error :
-            print ("Error while connecting to PostgreSQL", error)
-        finally:
-            #closing database connection.
-            if(connection):
-                connection.close()
+        #print(self.start_date is None)
+        # column names
+        columns = [
+            "Start","End","Low",
+            "High","Open","Close","Volume","VWAP"
+        ]
+        # new column names
+        new_columns = [
+            "Start", "Open", "High", "Low",
+            "Close", "Volume"
+        ]
+        
+        self.tickers_data[ticker] = pd.DataFrame(data)
+        self.tickers_data[ticker].columns = columns
+        self.tickers_data[ticker]= self.tickers_data[ticker].drop(["End", "VWAP"], axis=1)
+        self.tickers_data[ticker] = self.tickers_data[ticker][new_columns]
+        self.tickers_data[ticker].Start = pd.to_datetime(self.tickers_data[ticker].Start, utc=True)
+        self.tickers_data[ticker] = self.tickers_data[ticker].set_index('Start')
+        self.tickers_data[ticker].index.name = "Date"
+        self.tickers_data[ticker]['Ticker'] = ticker
 
     def _merge_sort_ticker_data(self):
         """
@@ -99,11 +97,11 @@ class QuestradeDatabaseBarPriceHandler(AbstractBarPriceHandler):
         if start is None and end is None:
             return df.iterrows()
         elif start is not None and end is None:
-            return df.ix[start:].iterrows()
+            return df.iloc[start:].iterrows()
         elif start is None and end is not None:
-            return df.ix[:end].iterrows()
+            return df.iloc[:end].iterrows()
         else:
-            return df.ix[start:end].iterrows()
+            return df.iloc[start:end].iterrows()
 
     def subscribe_ticker(self, ticker):
         """

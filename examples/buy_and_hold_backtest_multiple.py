@@ -49,8 +49,8 @@ def run(config, testing, tickers, filename):
     # Backtest information
     title = ['Buy and Hold Example on %s' % tickers[:]]
     initial_equity = 10000.0
-    start_date = datetime.datetime(2019, 1, 1)
-    end_date = datetime.datetime(2020, 1, 31)
+    start_date = datetime.datetime(2012, 1, 1)
+    end_date = datetime.datetime(2020, 3, 1)
     ticker_weights = {
         "SPY":0.3,
         "MA": 0.2,

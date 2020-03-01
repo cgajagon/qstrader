@@ -4,6 +4,7 @@ from .compat import queue
 from .event import EventType
 from .price_handler.yahoo_daily_csv_bar import YahooDailyCsvBarPriceHandler
 from .price_handler.questrade_daily_bar import QuestradeDatabaseBarPriceHandler
+from .price_handler.questrade_feed_daily_bar import QuestradeBarPriceHandler
 from .price_parser import PriceParser
 from .position_sizer.fixed import FixedPositionSizer
 from .risk_manager.example import ExampleRiskManager
@@ -63,7 +64,7 @@ class TradingSession(object):
         within the session.
         """
         if self.price_handler is None and self.session_type == "backtest":
-            self.price_handler = QuestradeDatabaseBarPriceHandler(
+            self.price_handler = QuestradeBarPriceHandler(
                 self.events_queue, self.tickers, 
                 start_date=self.start_date,
                 end_date=self.end_date
