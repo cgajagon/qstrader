@@ -46,7 +46,7 @@ class QuestradeBarPriceHandler(AbstractBarPriceHandler):
         Call the API and retrieve the containing the equities ticks, 
         converting them into a pandas DataFrame, stored in a dictionary.
         """     
-        provider = Questrade(token_yaml="access_token.yml")
+        provider = Questrade(token_yaml="../access_token.yml")
         # retrieve all the history
         initial_date = "1950-01-01"
         end_date = date.today().strftime("%Y-%m-%d")
