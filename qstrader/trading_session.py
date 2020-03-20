@@ -6,7 +6,6 @@ from .price_handler.yahoo_daily_csv_bar import YahooDailyCsvBarPriceHandler
 from .price_handler.questrade_daily_bar import QuestradeDatabaseBarPriceHandler
 from .price_handler.questrade_feed_daily_bar import QuestradeBarPriceHandler
 from .price_parser import PriceParser
-from .position_sizer.fixed import FixedPositionSizer
 from .risk_manager.example import ExampleRiskManager
 from .portfolio_handler import PortfolioHandler
 from .compliance.example import ExampleCompliance
@@ -24,8 +23,7 @@ class TradingSession(object):
         equity, start_date, end_date, events_queue,
         session_type="backtest", end_session_time=None,
         price_handler=None, portfolio_handler=None,
-        compliance=None, position_sizer=None,
-        execution_handler=None, risk_manager=None,
+        compliance=None, execution_handler=None, risk_manager=None,
         statistics=None, sentiment_handler=None,
         title=None, benchmark=None
     ):
@@ -44,7 +42,6 @@ class TradingSession(object):
         self.portfolio_handler = portfolio_handler
         self.compliance = compliance
         self.execution_handler = execution_handler
-        self.position_sizer = position_sizer
         self.risk_manager = risk_manager
         self.statistics = statistics
         self.sentiment_handler = sentiment_handler
@@ -64,14 +61,11 @@ class TradingSession(object):
         within the session.
         """
         if self.price_handler is None and self.session_type == "backtest":
-            self.price_handler = QuestradeBarPriceHandler(
+            self.price_handler = QuestradeDatabaseBarPriceHandler(
                 self.events_queue, self.tickers, 
                 start_date=self.start_date,
                 end_date=self.end_date
             )
-
-        if self.position_sizer is None:
-            self.position_sizer = FixedPositionSizer()
 
         if self.risk_manager is None:
             self.risk_manager = ExampleRiskManager()
@@ -81,7 +75,6 @@ class TradingSession(object):
                 self.equity,
                 self.events_queue,
                 self.price_handler,
-                self.position_sizer,
                 self.risk_manager
             )
 
@@ -138,7 +131,7 @@ class TradingSession(object):
                             self.sentiment_handler.stream_next(
                                 stream_date=self.cur_time
                             )
-                        self.strategy.calculate_signals(event)
+                        self.strategy.calculate_signals(event, self.portfolio_handler)
                         self.portfolio_handler.update_portfolio_value()
                         self.statistics.update(event.time, self.portfolio_handler)
                     elif event.type == EventType.SENTIMENT:

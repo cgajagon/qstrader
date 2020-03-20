@@ -1,22 +1,22 @@
 from math import floor
 
-from .base import AbstractPositionSizer
+from .base import AbstractSignalSizer
 from qstrader.price_parser import PriceParser
 
 
-class WeightPositionSizer(AbstractPositionSizer):
+class WeightSignalSizer(AbstractSignalSizer):
     def __init__(self, ticker_weights):
         self.ticker_weights = ticker_weights
 
-    def size_order(self, portfolio, initial_order):
+    def size_signal(self, portfolio, signal):
         """
         This WeightPositionSizer object divides the cash available 
         among the tickers selected.
         """
-        ticker = initial_order.ticker
+        ticker = signal.ticker
         weight = dict(self.ticker_weights)
 
-        if initial_order.action == 'BOT':
+        if signal.action == 'BOT':
             # Determine current cash available in the portfolio, work out dollar weight
             # and finally determine integer quantity of shares to purchase
             price = portfolio.price_handler.tickers[ticker]["close"]
@@ -37,12 +37,12 @@ class WeightPositionSizer(AbstractPositionSizer):
             # Determine the integer quantity of shares
             allocated_cash = cur_cash * weight[ticker]
             weight_quantity = (allocated_cash / price)
-            initial_order.quantity = int(floor(weight_quantity))
+            signal.suggested_quantity = int(floor(weight_quantity))
       
-        elif initial_order.action == 'STOP_LOSS':
+        elif signal.action == 'STOP_LOSS':
             # Liquidate the position
             cur_quantity = portfolio.positions[ticker].quantity
-            initial_order.quantity = cur_quantity
-            initial_order.action = 'SLD'
+            signal.suggested_quantity = cur_quantity
+            signal.action = 'SLD'
 
-        return initial_order
+        return signal

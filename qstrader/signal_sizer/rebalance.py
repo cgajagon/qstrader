@@ -1,10 +1,10 @@
 from math import floor
 
-from .base import AbstractPositionSizer
+from .base import AbstractSignalSizer
 from qstrader.price_parser import PriceParser
 
 
-class LiquidateRebalancePositionSizer(AbstractPositionSizer):
+class LiquidateRebalanceSignalSizer(AbstractSignalSizer):
     """
     Carries out a periodic full liquidation and rebalance of
     the Portfolio.
@@ -22,22 +22,23 @@ class LiquidateRebalancePositionSizer(AbstractPositionSizer):
     def __init__(self, ticker_weights):
         self.ticker_weights = ticker_weights
 
-    def size_order(self, portfolio, initial_order):
+    def size_signal(self, portfolio, signal):
         """
-        Size the order to reflect the dollar-weighting of the
+        Size the signal to reflect the dollar-weighting of the
         current equity account size based on pre-specified
         ticker weights.
         """
-        ticker = initial_order.ticker
-        if initial_order.action == "EXIT":
+        ticker = signal.ticker
+        
+        if signal.action == "EXIT":
             # Obtain current quantity and liquidate
             cur_quantity = portfolio.positions[ticker].quantity
             if cur_quantity > 0:
-                initial_order.action = "SLD"
-                initial_order.quantity = cur_quantity
+                signal.action = "SLD"
+                signal.quantity = cur_quantity
             else:
-                initial_order.action = "BOT"
-                initial_order.quantity = cur_quantity
+                signal.action = "BOT"
+                signal.suggested_quantity = cur_quantity
         else:
             weight = self.ticker_weights[ticker]
             # Determine total portfolio value, work out dollar weight
@@ -47,10 +48,10 @@ class LiquidateRebalancePositionSizer(AbstractPositionSizer):
             equity = PriceParser.display(portfolio.equity)
             dollar_weight = weight * equity
             weighted_quantity = int(floor(dollar_weight / price))
-            initial_order.quantity = weighted_quantity
-        return initial_order
+            signal.suggested_quantity = weighted_quantity
+        return signal
 
-class RebalancePositionSizer(AbstractPositionSizer):
+class RebalanceSignalSizer(AbstractSignalSizer):
     """
     Carries out a periodic full liquidation and rebalance of
     the Portfolio.
@@ -68,13 +69,13 @@ class RebalancePositionSizer(AbstractPositionSizer):
     def __init__(self, ticker_weights):
         self.ticker_weights = ticker_weights
 
-    def size_order(self, portfolio, initial_order):
+    def size_signal(self, portfolio, signal):
         """
-        Size the order to reflect the dollar-weighting of the
+        Size the signal to reflect the dollar-weighting of the
         current equity account size based on pre-specified
         ticker weights.
         """
-        ticker = initial_order.ticker
+        ticker = signal.ticker
         weight = self.ticker_weights[ticker]
         # Determine total portfolio value, work out dollar weight
         # and finally determine integer quantity of shares to purchase
@@ -84,17 +85,17 @@ class RebalancePositionSizer(AbstractPositionSizer):
         dollar_weight = weight * equity
         weighted_quantity = int(floor(dollar_weight / price))
 
-        if initial_order.action == "REBALANCE":
+        if signal.action == "REBALANCE":
             # Obtain current quantity
             cur_quantity = portfolio.positions[ticker].quantity
             if cur_quantity - weighted_quantity > 0:
-                initial_order.action = "SLD"
-                initial_order.quantity = cur_quantity - weighted_quantity 
+                signal.action = "SLD"
+                signal.suggested_quantity = cur_quantity - weighted_quantity 
             else:
-                initial_order.action = "BOT"
-                initial_order.quantity = weighted_quantity - cur_quantity
+                signal.action = "BOT"
+                signal.suggested_quantity = weighted_quantity - cur_quantity
         
         else:
-            initial_order.quantity = weighted_quantity
+            signal.suggested_quantity = weighted_quantity
 
-        return initial_order
+        return signal

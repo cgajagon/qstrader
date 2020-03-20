@@ -5,7 +5,7 @@ from .portfolio import Portfolio
 class PortfolioHandler(object):
     def __init__(
         self, initial_cash, events_queue,
-        price_handler, position_sizer, risk_manager
+        price_handler, risk_manager
     ):
         """
         The PortfolioHandler is designed to interact with the
@@ -28,7 +28,6 @@ class PortfolioHandler(object):
         self.initial_cash = initial_cash
         self.events_queue = events_queue
         self.price_handler = price_handler
-        self.position_sizer = position_sizer
         self.risk_manager = risk_manager
         self.portfolio = Portfolio(price_handler, initial_cash)
 
@@ -96,14 +95,10 @@ class PortfolioHandler(object):
         """
         # Create the initial order list from a signal event
         initial_order = self._create_order_from_signal(signal_event)
-        # Size the quantity of the initial order
-        sized_order = self.position_sizer.size_order(
-            self.portfolio, initial_order
-        )
-        print(sized_order.ticker, sized_order.action, sized_order.quantity)
+        print(initial_order.ticker, initial_order.action, initial_order.quantity)
         # Refine or eliminate the order via the risk manager overlay
         order_events = self.risk_manager.refine_orders(
-            self.portfolio, sized_order
+            self.portfolio, initial_order
         )
         # Place orders onto events queue
         self._place_orders_onto_queue(order_events)

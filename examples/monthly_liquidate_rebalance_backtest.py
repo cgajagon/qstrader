@@ -3,7 +3,7 @@ import datetime
 
 from qstrader import settings
 from qstrader.strategy.base import AbstractStrategy
-from qstrader.position_sizer.rebalance import LiquidateRebalancePositionSizer
+from qstrader.signal_sizer.rebalance import LiquidateRebalanceSignalSizer
 from qstrader.event import SignalEvent, EventType
 from qstrader.compat import queue
 from qstrader.trading_session import TradingSession
@@ -14,13 +14,11 @@ class MonthlyLiquidateRebalanceStrategy(AbstractStrategy):
     A generic strategy that allows monthly rebalancing of a
     set of tickers, via full liquidation and dollar-weighting
     of new positions.
-
-    Must be used in conjunction with the
-    LiquidateRebalancePositionSizer object to work correctly.
     """
-    def __init__(self, tickers, events_queue):
+    def __init__(self, tickers, events_queue, ticker_weights):
         self.tickers = tickers
         self.events_queue = events_queue
+        self.ticker_weights = ticker_weights
         self.tickers_invested = self._create_invested_list()
 
     def _end_of_month(self, cur_time):
@@ -41,7 +39,7 @@ class MonthlyLiquidateRebalanceStrategy(AbstractStrategy):
         tickers_invested = {ticker: False for ticker in self.tickers}
         return tickers_invested
 
-    def calculate_signals(self, event):
+    def calculate_signals(self, event, portfolio_handler):
         """
         For a particular received BarEvent, determine whether
         it is the end of the month (for that bar) and generate
@@ -53,11 +51,18 @@ class MonthlyLiquidateRebalanceStrategy(AbstractStrategy):
             self._end_of_month(event.time)
         ):
             ticker = event.ticker
-            if self.tickers_invested[ticker]:
+            if self.tickers_invested[ticker]: # Exit position
                 liquidate_signal = SignalEvent(ticker, "EXIT")
+                liquidate_signal.suggested_quantity = portfolio_handler.portfolio.positions[ticker].quantity
                 self.events_queue.put(liquidate_signal)
+            # Enter position     
             long_signal = SignalEvent(ticker, "BOT")
-            self.events_queue.put(long_signal)
+            # Select type of sizer and size the quantity of the signal
+            signal_sizer = LiquidateRebalanceSignalSizer(self.ticker_weights)
+            sized_signal = signal_sizer.size_signal(
+                portfolio_handler.portfolio, long_signal
+            )
+            self.events_queue.put(sized_signal)
             self.tickers_invested[ticker] = True
 
 
@@ -69,30 +74,22 @@ def run(config, testing, tickers, filename):
     initial_equity = 10000.0
     start_date = datetime.datetime(2018, 1, 1)
     end_date = datetime.datetime(2020, 1, 1)
+    ticker_weights = {
+        "SPY": 0.5,
+        "AAPL":0.5,
+    }
 
     # Use the Monthly Liquidate And Rebalance strategy
     events_queue = queue.Queue()
     strategy = MonthlyLiquidateRebalanceStrategy(
-        tickers, events_queue
-    )
-
-    # Use the liquidate and rebalance position sizer
-    # with prespecified ticker weights
-    ticker_weights = {
-        "SPY": 0.3,
-        "AGG": 0.2,
-        "AAPL":0.2,
-    }
-    position_sizer = LiquidateRebalancePositionSizer(
-        ticker_weights
+        tickers, events_queue, ticker_weights
     )
 
     # Set up the backtest
     backtest = TradingSession(
         config, strategy, tickers,
         initial_equity, start_date, end_date,
-        events_queue, position_sizer=position_sizer,
-        title=title, benchmark=tickers[0],
+        events_queue, title=title, benchmark=tickers[0],
     )
     results = backtest.start_trading(testing=testing)
     return results
@@ -104,6 +101,6 @@ if __name__ == "__main__":
     config = settings.from_file(
         settings.DEFAULT_CONFIG_FILENAME, testing
     )
-    tickers = ["SPY", "AGG", "AAPL"]
+    tickers = ["SPY", "AAPL"]
     filename = None
     run(config, testing, tickers, filename)

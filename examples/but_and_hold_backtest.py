@@ -5,7 +5,7 @@ from qstrader.strategy.base import AbstractStrategy
 from qstrader.event import SignalEvent, EventType
 from qstrader.compat import queue
 from qstrader.trading_session import TradingSession
-from qstrader.position_sizer.fixed import FixedPositionSizer
+from qstrader.signal_sizer.fixed import FixedSignalSizer
 
 
 class BuyAndHoldStrategy(AbstractStrategy):
@@ -22,16 +22,22 @@ class BuyAndHoldStrategy(AbstractStrategy):
         self.events_queue = events_queue
         self.invested = False
 
-    def calculate_signals(self, event):
+    def calculate_signals(self, event, portfolio_handler):
         if (
             event.type in [EventType.BAR, EventType.TICK] and
             event.ticker == self.ticker
         ):
             if not self.invested:
+    
                 signal = SignalEvent(
                     self.ticker, "BOT",
                 )
-                self.events_queue.put(signal)
+                # Select type of sizer and size the quantity of the signal
+                signal_sizer = FixedSignalSizer()
+                sized_signal = signal_sizer.size_signal(
+                    portfolio_handler.portfolio, signal
+                )
+                self.events_queue.put(sized_signal)
                 self.invested = True
 
 def run(config, testing, tickers, filename):
@@ -45,14 +51,11 @@ def run(config, testing, tickers, filename):
     events_queue = queue.Queue()
     strategy = BuyAndHoldStrategy(tickers[0], events_queue)
 
-    position_sizer = FixedPositionSizer()
-
     # Set up the backtest
     backtest = TradingSession(
         config, strategy, tickers,
         initial_equity, start_date, end_date,
-        events_queue, position_sizer=position_sizer,
-        title=title, benchmark=tickers[1]
+        events_queue, title=title, benchmark=tickers[1]
     )
     results = backtest.start_trading(testing=testing)
     return results
@@ -64,6 +67,6 @@ if __name__ == "__main__":
     config = settings.from_file(
         settings.DEFAULT_CONFIG_FILENAME, testing
     )
-    tickers = ["V", "SPY"]
+    tickers = ["AAPL", "SPY"]
     filename = None
     run(config, testing, tickers, filename)

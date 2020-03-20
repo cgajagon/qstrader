@@ -21,19 +21,6 @@ class PriceHandlerMock(AbstractTickPriceHandler):
         return prices[ticker]
 
 
-class PositionSizerMock(object):
-    def __init__(self):
-        pass
-
-    def size_order(self, portfolio, initial_order):
-        """
-        This PositionSizerMock object simply modifies
-        the quantity to be 100 of any share transacted.
-        """
-        initial_order.quantity = 100
-        return initial_order
-
-
 class RiskManagerMock(object):
     def __init__(self):
         pass
@@ -65,12 +52,11 @@ class TestSimpleSignalOrderFillCycleForPortfolioHandler(unittest.TestCase):
         initial_cash = Decimal("500000.00")
         events_queue = queue.Queue()
         price_handler = PriceHandlerMock()
-        position_sizer = PositionSizerMock()
         risk_manager = RiskManagerMock()
         # Create the PortfolioHandler object from the rest
         self.portfolio_handler = PortfolioHandler(
             initial_cash, events_queue, price_handler,
-            position_sizer, risk_manager
+            risk_manager
         )
 
     def test_create_order_from_signal_basic_check(self):

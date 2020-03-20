@@ -5,7 +5,7 @@ from qstrader.strategy.base import AbstractStrategy
 from qstrader.event import SignalEvent, EventType
 from qstrader.compat import queue
 from qstrader.trading_session import TradingSession
-from qstrader.position_sizer.weight import WeightPositionSizer 
+from qstrader.signal_sizer.weight import WeightSignalSizer 
 
 
 class BuyAndHoldStopLossStrategy(AbstractStrategy):
@@ -19,6 +19,7 @@ class BuyAndHoldStopLossStrategy(AbstractStrategy):
         self, tickers, 
         events_queue, 
         risk_pct,
+        ticker_weights,
     ):
         """
         TODO
@@ -26,6 +27,7 @@ class BuyAndHoldStopLossStrategy(AbstractStrategy):
         self.tickers = tickers
         self.events_queue = events_queue
         self.risk_pct = risk_pct
+        self.ticker_weights = ticker_weights
         self.tickers_invested = self._create_invested_list()
         self.maximum_prices = self._create_maximum_list()
 
@@ -48,12 +50,13 @@ class BuyAndHoldStopLossStrategy(AbstractStrategy):
 
         return maximum_prices
  
-    def calculate_signals(self, event):
+    def calculate_signals(self, event, portfolio_handler):
         if (
             event.type in [EventType.BAR, EventType.TICK]
             ):
             
             ticker = event.ticker
+            signal_sizer = WeightSignalSizer(self.ticker_weights)
             # Update historical maximum price for the ticker
             if self.maximum_prices[ticker] < event.high_price:
                 self.maximum_prices[ticker] = event.high_price
@@ -63,7 +66,11 @@ class BuyAndHoldStopLossStrategy(AbstractStrategy):
                 signal = SignalEvent(
                     ticker, "BOT",
                 )
-                self.events_queue.put(signal)
+                # Select type of sizer and size the quantity of the signal
+                sized_signal = signal_sizer.size_signal(
+                    portfolio_handler.portfolio, signal
+                )
+                self.events_queue.put(sized_signal)
                 self.tickers_invested[ticker] = True
           
             # Stop Loss Signal
@@ -71,7 +78,11 @@ class BuyAndHoldStopLossStrategy(AbstractStrategy):
                 signal = SignalEvent(
                     ticker, "STOP_LOSS",
                 )
-                self.events_queue.put(signal)
+                # Select type of sizer and size the quantity of the signal
+                sized_signal = signal_sizer.size_signal(
+                    portfolio_handler.portfolio, signal
+                )
+                self.events_queue.put(sized_signal)
                 self.tickers_invested[ticker] = False
 
 def run(config, testing, tickers, filename):
@@ -81,28 +92,24 @@ def run(config, testing, tickers, filename):
     start_date = datetime.datetime(2017, 1, 1)
     end_date = datetime.datetime(2020, 1, 1)
     ticker_weights = {
-        "SPY": 0.2,
-        "AAPL":0.2,
-        "AGG":0.2,
-        "V":0.2,
+        "SPY": 0.5,
+        "AAPL":0.5,
     }
     
     # Acceptable drop percentage for the position
-    risk_pct = 0.04
+    risk_pct = 0.2
 
     # Use the Buy and Hold Strategy
     events_queue = queue.Queue()
-    strategy = BuyAndHoldStopLossStrategy(tickers, events_queue, risk_pct)
-
-    # Position Sizer
-    position_sizer = WeightPositionSizer(ticker_weights)
+    strategy = BuyAndHoldStopLossStrategy(
+        tickers, events_queue, risk_pct, ticker_weights
+        )
 
     # Set up the backtest
     backtest = TradingSession(
         config, strategy, tickers,
         initial_equity, start_date, end_date,
-        events_queue, position_sizer=position_sizer,
-        title=title, benchmark=tickers[0]
+        events_queue, title=title, benchmark=tickers[0]
     )
     results = backtest.start_trading(testing=testing)
     return results
@@ -114,6 +121,6 @@ if __name__ == "__main__":
     config = settings.from_file(
         settings.DEFAULT_CONFIG_FILENAME, testing
     )
-    tickers = ["SPY", "AAPL", "AGG", "V"]
+    tickers = ["SPY", "AAPL"]
     filename = None
     run(config, testing, tickers, filename)

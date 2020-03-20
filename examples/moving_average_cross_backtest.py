@@ -8,7 +8,7 @@ from qstrader.strategy.base import AbstractStrategy
 from qstrader.event import SignalEvent, EventType
 from qstrader.compat import queue
 from qstrader.trading_session import TradingSession
-from qstrader.position_sizer.fixed import FixedPositionSizer
+from qstrader.signal_sizer.naive import NaiveSignalSizer
 
 
 class MovingAverageCrossStrategy(AbstractStrategy):
@@ -24,28 +24,28 @@ class MovingAverageCrossStrategy(AbstractStrategy):
         events_queue,
         short_window=100,
         long_window=300,
-        base_quantity=100
     ):
         self.ticker = ticker
         self.events_queue = events_queue
         self.short_window = short_window
         self.long_window = long_window
-        self.base_quantity = base_quantity
         self.bars = 0
         self.invested = False
         self.sw_bars = deque(maxlen=self.short_window)
         self.lw_bars = deque(maxlen=self.long_window)
 
-    def calculate_signals(self, event):
+    def calculate_signals(self, event, portfolio_handler):
         if (
             event.type == EventType.BAR and
             event.ticker == self.ticker
         ):
+            # Select the signal sizer
+            signal_sizer = NaiveSignalSizer(default_quantity=10)
             # Add latest adjusted closing price to the
             # short and long window bars
-            self.lw_bars.append(event.adj_close_price)
+            self.lw_bars.append(event.close_price)
             if self.bars > self.long_window - self.short_window:
-                self.sw_bars.append(event.adj_close_price)
+                self.sw_bars.append(event.close_price)
 
             # Enough bars are present for trading
             if self.bars > self.long_window:
@@ -55,17 +55,23 @@ class MovingAverageCrossStrategy(AbstractStrategy):
                 # Trading signals based on moving average cross
                 if short_sma > long_sma and not self.invested:
                     signal = SignalEvent(
-                        self.ticker, "BOT",
-                        suggested_quantity=self.base_quantity
+                        self.ticker, "BOT"
                     )
-                    self.events_queue.put(signal)
+                    # Select type of sizer and size the quantity of the signal
+                    sized_signal = signal_sizer.size_signal(
+                        portfolio_handler.portfolio, signal
+                    )
+                    self.events_queue.put(sized_signal)
                     self.invested = True
                 elif short_sma < long_sma and self.invested:
                     signal = SignalEvent(
-                        self.ticker, "SLD",
-                        suggested_quantity=self.base_quantity
+                        self.ticker, "SLD"
                     )
-                    self.events_queue.put(signal)
+                    # Select type of sizer and size the quantity of the signal
+                    sized_signal = signal_sizer.size_signal(
+                        portfolio_handler.portfolio, signal
+                    )
+                    self.events_queue.put(sized_signal)
                     self.invested = False
             self.bars += 1
 
@@ -73,7 +79,7 @@ class MovingAverageCrossStrategy(AbstractStrategy):
 def run(config, testing, tickers, filename):
     # Backtest information
     title = ['Moving Average Crossover Example on AAPL: 100x300']
-    initial_equity = 10000.0 #The initial equity is only added for reference, but it is not used
+    initial_equity = 10000.0
     start_date = datetime.datetime(2000, 1, 1)
     end_date = datetime.datetime(2014, 1, 1)
     quantity = 100
@@ -86,15 +92,11 @@ def run(config, testing, tickers, filename):
         long_window=300
     )
 
-    # Position Sizer
-    position_sizer = FixedPositionSizer(default_quantity=quantity)
-
     # Set up the backtest
     backtest = TradingSession(
         config, strategy, tickers,
         initial_equity, start_date, end_date,
-        events_queue, position_sizer=position_sizer,
-        title=title, benchmark=tickers[1],
+        events_queue, title=title, benchmark=tickers[1],
     )
     results = backtest.start_trading(testing=testing)
     return results

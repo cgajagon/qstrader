@@ -3,7 +3,7 @@ import datetime
 
 from qstrader import settings
 from qstrader.strategy.base import AbstractStrategy
-from qstrader.position_sizer.rebalance import RebalancePositionSizer
+from qstrader.signal_sizer.rebalance import RebalanceSignalSizer
 from qstrader.event import SignalEvent, EventType
 from qstrader.compat import queue
 from qstrader.trading_session import TradingSession
@@ -17,9 +17,10 @@ class MonthlyRebalanceStrategy(AbstractStrategy):
     Must be used in conjunction with the
     RebalancePositionSizer object to work correctly.
     """
-    def __init__(self, tickers, events_queue):
+    def __init__(self, tickers, events_queue, ticker_weights):
         self.tickers = tickers
         self.events_queue = events_queue
+        self.ticker_weights = ticker_weights
         self.tickers_invested = self._create_invested_list()
 
     def _end_of_month(self, cur_time):
@@ -40,11 +41,11 @@ class MonthlyRebalanceStrategy(AbstractStrategy):
         tickers_invested = {ticker: False for ticker in self.tickers}
         return tickers_invested
 
-    def calculate_signals(self, event):
+    def calculate_signals(self, event, portfolio_handler):
         """
         For a particular received BarEvent, determine whether
         it is the end of the month (for that bar) and generate
-        a liquidation signal, as well as a purchase signal,
+        a rebalance signal, as well as a purchase signal,
         for each ticker.
         """
         if (
@@ -54,11 +55,21 @@ class MonthlyRebalanceStrategy(AbstractStrategy):
             ticker = event.ticker
             if self.tickers_invested[ticker]:
                 liquidate_signal = SignalEvent(ticker, "REBALANCE")
-                self.events_queue.put(liquidate_signal)
+                # Select type of sizer and size the quantity of the signal
+                signal_sizer = RebalanceSignalSizer(self.ticker_weights)
+                sized_signal = signal_sizer.size_signal(
+                    portfolio_handler.portfolio, liquidate_signal
+                )
+                self.events_queue.put(sized_signal)
             
             elif self.tickers_invested[ticker] == False:
                 long_signal = SignalEvent(ticker, "BOT")
-                self.events_queue.put(long_signal)
+                # Select type of sizer and size the quantity of the signal
+                signal_sizer = RebalanceSignalSizer(self.ticker_weights)
+                sized_signal = signal_sizer.size_signal(
+                    portfolio_handler.portfolio, long_signal
+                )
+                self.events_queue.put(sized_signal)
                 self.tickers_invested[ticker] = True
 
 
@@ -70,30 +81,22 @@ def run(config, testing, tickers, filename):
     initial_equity = 10000.0
     start_date = datetime.datetime(2019, 5, 30)
     end_date = datetime.datetime(2020, 1, 1)
+    ticker_weights = {
+        "SPY": 0.5,
+        "AAPL":0.5,
+    }
 
     # Use the Monthly Liquidate And Rebalance strategy
     events_queue = queue.Queue()
     strategy = MonthlyRebalanceStrategy(
-        tickers, events_queue
-    )
-
-    # Use the liquidate and rebalance position sizer
-    # with prespecified ticker weights
-    ticker_weights = {
-        "SPY": 0.3,
-        "AGG": 0.2,
-        "AAPL":0.2,
-    }
-    position_sizer = RebalancePositionSizer(
-        ticker_weights
+        tickers, events_queue, ticker_weights
     )
 
     # Set up the backtest
     backtest = TradingSession(
         config, strategy, tickers,
         initial_equity, start_date, end_date,
-        events_queue, position_sizer=position_sizer,
-        title=title, benchmark=tickers[0],
+        events_queue, title=title, benchmark=tickers[0],
     )
     results = backtest.start_trading(testing=testing)
     return results
@@ -105,6 +108,6 @@ if __name__ == "__main__":
     config = settings.from_file(
         settings.DEFAULT_CONFIG_FILENAME, testing
     )
-    tickers = ["SPY", "AGG", "AAPL"]
+    tickers = ["SPY", "AAPL"]
     filename = None
     run(config, testing, tickers, filename)
