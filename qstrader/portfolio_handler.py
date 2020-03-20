@@ -1,4 +1,3 @@
-from .order.suggested import SuggestedOrder
 from .portfolio import Portfolio
 
 
@@ -33,31 +32,18 @@ class PortfolioHandler(object):
 
     def _create_order_from_signal(self, signal_event):
         """
-        Take a SignalEvent object and use it to form a
-        SuggestedOrder object. These are not OrderEvent objects,
-        as they have yet to be sent to the RiskManager object.
-        At this stage they are simply "suggestions" that the
-        RiskManager will either verify, modify or eliminate.
+        Take a SignalEvent object send it to the RiskManager
+        to form an OrderEvent
+        The RiskManager will either verify, modify or eliminate the signal.
+        Once received from the RiskManager they are 
+        sent back to the events queue.
         """
-        if signal_event.suggested_quantity is None:
-            quantity = 0
-        else:
-            quantity = signal_event.suggested_quantity
-        order = SuggestedOrder(
-            signal_event.ticker,
-            signal_event.action,
-            quantity=quantity
+        order_event = self.risk_manager.refine_orders(
+            self.portfolio, signal_event
         )
-        return order
+        print(order_event.ticker, order_event.action, order_event.quantity)
 
-    def _place_orders_onto_queue(self, order_list):
-        """
-        Once the RiskManager has verified, modified or eliminated
-        any order objects, they are placed onto the events queue,
-        to ultimately be executed by the ExecutionHandler.
-        """
-        for order_event in order_list:
-            self.events_queue.put(order_event)
+        self.events_queue.put(order_event)
 
     def _convert_fill_to_portfolio_update(self, fill_event):
         """
@@ -87,21 +73,10 @@ class PortfolioHandler(object):
         This is called by the backtester or live trading architecture
         to form the initial orders from the SignalEvent.
 
-        These orders are sent to the RiskManager
-        to verify, modify or eliminate.
-
         Once received from the RiskManager they are converted into
         full OrderEvent objects and sent back to the events queue.
         """
-        # Create the initial order list from a signal event
-        initial_order = self._create_order_from_signal(signal_event)
-        print(initial_order.ticker, initial_order.action, initial_order.quantity)
-        # Refine or eliminate the order via the risk manager overlay
-        order_events = self.risk_manager.refine_orders(
-            self.portfolio, initial_order
-        )
-        # Place orders onto events queue
-        self._place_orders_onto_queue(order_events)
+        self._create_order_from_signal(signal_event)
 
     def on_fill(self, fill_event):
         """
