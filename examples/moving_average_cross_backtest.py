@@ -40,7 +40,7 @@ class MovingAverageCrossStrategy(AbstractStrategy):
             event.ticker == self.ticker
         ):
             # Select the signal sizer
-            signal_sizer = NaiveSignalSizer(default_quantity=10)
+            signal_sizer = NaiveSignalSizer(default_quantity=1000)
             # Add latest adjusted closing price to the
             # short and long window bars
             self.lw_bars.append(event.close_price)
@@ -82,7 +82,6 @@ def run(config, testing, tickers, filename):
     initial_equity = 10000.0
     start_date = datetime.datetime(2000, 1, 1)
     end_date = datetime.datetime(2014, 1, 1)
-    quantity = 100
 
     # Use the MAC Strategy
     events_queue = queue.Queue()

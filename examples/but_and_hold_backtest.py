@@ -45,7 +45,7 @@ def run(config, testing, tickers, filename):
     title = ['Buy and Hold Example on %s' % tickers[0]]
     initial_equity = 10000.0
     start_date = datetime.datetime(2019, 1, 1)
-    end_date = datetime.datetime(2020, 1, 1)
+    end_date = datetime.datetime(2020, 3, 19)
 
     # Use the Buy and Hold Strategy
     events_queue = queue.Queue()
@@ -67,6 +67,6 @@ if __name__ == "__main__":
     config = settings.from_file(
         settings.DEFAULT_CONFIG_FILENAME, testing
     )
-    tickers = ["AAPL", "SPY"]
+    tickers = ["KEYS", "SPY"]
     filename = None
     run(config, testing, tickers, filename)

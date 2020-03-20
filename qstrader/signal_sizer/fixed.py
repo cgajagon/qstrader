@@ -8,8 +8,8 @@ class FixedSignalSizer(AbstractSignalSizer):
 
     def size_signal(self, portfolio, signal):
         """
-        This FixedPositionSizer object simply modifies
-        the quantity to be a default quantity of any share transacted.
+        This FixedPositionSizer object calculate 
+        the quantity for the total cash available.
         """
 
         ticker = signal.ticker

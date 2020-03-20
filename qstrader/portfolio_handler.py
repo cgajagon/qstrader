@@ -87,8 +87,8 @@ class PortfolioHandler(object):
         This is called by the backtester or live trading architecture
         to form the initial orders from the SignalEvent.
 
-        These orders are sized by the PositionSizer object and then
-        sent to the RiskManager to verify, modify or eliminate.
+        These orders are sent to the RiskManager
+        to verify, modify or eliminate.
 
         Once received from the RiskManager they are converted into
         full OrderEvent objects and sent back to the events queue.

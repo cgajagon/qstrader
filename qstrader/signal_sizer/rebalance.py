@@ -90,11 +90,10 @@ class RebalanceSignalSizer(AbstractSignalSizer):
             cur_quantity = portfolio.positions[ticker].quantity
             if cur_quantity - weighted_quantity > 0:
                 signal.action = "SLD"
-                signal.suggested_quantity = cur_quantity - weighted_quantity 
+                signal.suggested_quantity = cur_quantity - weighted_quantity
             else:
                 signal.action = "BOT"
                 signal.suggested_quantity = weighted_quantity - cur_quantity
-        
         else:
             signal.suggested_quantity = weighted_quantity
 

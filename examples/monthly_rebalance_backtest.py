@@ -3,7 +3,7 @@ import datetime
 
 from qstrader import settings
 from qstrader.strategy.base import AbstractStrategy
-from qstrader.signal_sizer.rebalance import RebalanceSignalSizer
+from qstrader.signal_sizer.weight import WeightComplexSignalSizer
 from qstrader.event import SignalEvent, EventType
 from qstrader.compat import queue
 from qstrader.trading_session import TradingSession
@@ -53,19 +53,19 @@ class MonthlyRebalanceStrategy(AbstractStrategy):
             self._end_of_month(event.time)
         ):
             ticker = event.ticker
+            # Select type of sizer
+            signal_sizer = WeightComplexSignalSizer(self.ticker_weights)
             if self.tickers_invested[ticker]:
-                liquidate_signal = SignalEvent(ticker, "REBALANCE")
-                # Select type of sizer and size the quantity of the signal
-                signal_sizer = RebalanceSignalSizer(self.ticker_weights)
+                rebalance_signal = SignalEvent(ticker, "REBALANCE")
+                # Size the quantity of the signal
                 sized_signal = signal_sizer.size_signal(
-                    portfolio_handler.portfolio, liquidate_signal
+                    portfolio_handler.portfolio, rebalance_signal
                 )
                 self.events_queue.put(sized_signal)
             
             elif self.tickers_invested[ticker] == False:
                 long_signal = SignalEvent(ticker, "BOT")
-                # Select type of sizer and size the quantity of the signal
-                signal_sizer = RebalanceSignalSizer(self.ticker_weights)
+                # Size the quantity of the signal
                 sized_signal = signal_sizer.size_signal(
                     portfolio_handler.portfolio, long_signal
                 )
@@ -76,14 +76,15 @@ class MonthlyRebalanceStrategy(AbstractStrategy):
 def run(config, testing, tickers, filename):
     # Backtest information
     title = [
-        'Monthly Liquidate/Rebalance on 60%/40% SPY/AGG Portfolio'
+        'Monthly Rebalance on %s' % tickers[:]
     ]
     initial_equity = 10000.0
-    start_date = datetime.datetime(2019, 5, 30)
-    end_date = datetime.datetime(2020, 1, 1)
+    start_date = datetime.datetime(2017, 1, 1)
+    end_date = datetime.datetime(2020, 3, 20)
     ticker_weights = {
-        "SPY": 0.5,
-        "AAPL":0.5,
+        "SPY": 0.33,
+        "GOOG":0.33,
+        "AAPL":0.34,
     }
 
     # Use the Monthly Liquidate And Rebalance strategy
@@ -108,6 +109,6 @@ if __name__ == "__main__":
     config = settings.from_file(
         settings.DEFAULT_CONFIG_FILENAME, testing
     )
-    tickers = ["SPY", "AAPL"]
+    tickers = ["SPY", "GOOG", "AAPL"]
     filename = None
     run(config, testing, tickers, filename)

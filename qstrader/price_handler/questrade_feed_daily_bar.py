@@ -65,6 +65,7 @@ class QuestradeBarPriceHandler(AbstractBarPriceHandler):
         ]
         
         self.tickers_data[ticker] = pd.DataFrame(data)
+        print(self.tickers_data[ticker], ticker)
         self.tickers_data[ticker].columns = columns
         self.tickers_data[ticker]= self.tickers_data[ticker].drop(["End", "VWAP"], axis=1)
         self.tickers_data[ticker] = self.tickers_data[ticker][new_columns]
